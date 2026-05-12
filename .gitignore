@@ -1,0 +1,27 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub/
+build/
+
+# Flutter generated
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Environment / secrets
+.env
+.env.*
+secrets/
+*.key
+*.pem
+
+# Generated export files
+exports/
