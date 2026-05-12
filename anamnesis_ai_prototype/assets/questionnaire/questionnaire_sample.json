@@ -1,0 +1,33 @@
+{
+  "resourceType": "Questionnaire",
+  "status": "active",
+  "item": [
+    {
+      "linkId": "NITSVAn08",
+      "text": "Art der Aufnahme auf die Station",
+      "answerOption": [
+        { "valueString": "Geplante Aufnahme" },
+        { "valueString": "Verlegung" },
+        { "valueString": "Notfall" }
+      ]
+    },
+    {
+      "linkId": "NITSVAn11",
+      "text": "Pat. wurde aufgenommen",
+      "answerOption": [
+        { "valueString": "gehend" },
+        { "valueString": "sitzend" },
+        { "valueString": "liegend" }
+      ]
+    },
+    {
+      "linkId": "NITSVAn103",
+      "text": "Familienstand",
+      "answerOption": [
+        { "valueString": "Verheiratet" },
+        { "valueString": "Geschieden" },
+        { "valueString": "Verwitwet" }
+      ]
+    }
+  ]
+}
