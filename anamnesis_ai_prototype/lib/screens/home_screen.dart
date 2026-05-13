@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/analysis_result.dart';
-import '../services/analysis_service.dart';
+import '../services/openai_service.dart';
 import '../services/questionnaire_service.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -12,7 +12,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final QuestionnaireService _questionnaireService = QuestionnaireService();
-  final AnalysisService _analysisService = AnalysisService();
+  final OpenAiService _openAiService = OpenAiService();
   final TextEditingController _transcriptController = TextEditingController();
 
   bool _isLoading = true;
@@ -39,7 +39,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _isAnalyzing = true;
     });
 
-    final results = await _analysisService.analyzeTranscript(
+    final results = await _openAiService.analyzeTranscript(
       _transcriptController.text,
     );
 
