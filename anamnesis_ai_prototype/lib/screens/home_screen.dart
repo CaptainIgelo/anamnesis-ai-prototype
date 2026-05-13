@@ -17,6 +17,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool _isLoading = true;
   bool _isAnalyzing = false;
+  String? _errorMessage;
   List<AnalysisResult> _results = [];
 
   @override
@@ -35,19 +36,44 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _analyzeTranscript() async {
+    final transcript = _transcriptController.text.trim();
+
+    if (transcript.isEmpty) {
+      setState(() {
+        _errorMessage = 'Please enter a transcript befoe starting the analysis.';
+        _results = [];
+      });
+      return;
+    }
+
     setState(() {
       _isAnalyzing = true;
+      _errorMessage = null; 
     });
 
-    final results = await _openAiService.analyzeTranscript(
-      _transcriptController.text,
-    );
+    try {
+      final results = await _openAiService.analyzeTranscript(transcript);
 
-    setState(() {
-      _results = results;
-      _isAnalyzing = false;
-    });
+      if (!mounted) return; 
+
+      setState(() {
+        _results = results; 
+      });
+    } catch(e) {
+      if (!mounted) return; 
+
+      setState(() {
+        _results = [];
+        _errorMessage = 'Analysis failed. Please try again latter.';
+      });
+    } finally {
+    if (mounted) {
+      setState(() {
+        _isAnalyzing = false;
+      });
+    }
   }
+} 
 
   @override
   void dispose() {
@@ -94,6 +120,16 @@ class _HomeScreenState extends State<HomeScreen> {
                           )
                         : const Text('Analyze transcript'),
                   ),
+                  if (_errorMessage != null) ...[
+                    const SizedBox(height:12),
+                    Text(
+                      _errorMessage!,
+                      style: const TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 24),
                   const Text(
                     'Analysis results',
