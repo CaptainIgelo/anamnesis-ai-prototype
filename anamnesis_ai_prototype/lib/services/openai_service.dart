@@ -1,15 +1,114 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import '../config/app_config.dart';
 import '../models/analysis_result.dart';
 
 class OpenAiService {
+  static const String _baseUrl = 'https://api.openai.com/v1/chat/completions';
+
   Future<List<AnalysisResult>> analyzeTranscript(String transcript) async {
     if (AppConfig.useMockOpenAi) {
       return _mockAnalyzeTranscript(transcript);
     }
 
-    throw UnimplementedError(
-      'Real OpenAI integration will be added later on the local machine.',
+    return _callOpenAi(transcript);
+  }
+
+  Future<List<AnalysisResult>> _callOpenAi(String transcript) async {
+    final response = await http.post(
+      Uri.parse(_baseUrl),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${AppConfig.openAiApiKey}',
+      },
+      body: jsonEncode({
+        'model': 'gpt-4o-mini',
+        'messages': [
+          {
+            'role': 'system',
+            'content': _systemPrompt,
+          },
+          {
+            'role': 'user',
+            'content': 'Transcript: $transcript',
+          },
+        ],
+        'max_tokens': 500,
+        'temperature': 0.1,
+      }),
     );
+
+    if (response.statusCode != 200) {
+      throw Exception('OpenAI API error: ${response.statusCode} ${response.body}');
+    }
+
+    final data = jsonDecode(response.body);
+    final content = data['choices'][0]['message']['content'] as String;
+
+    return _parseOpenAiResponse(content);
+  }
+
+  static const String _systemPrompt = '''
+Du analysierst Pflege-Anamnese-Transkripte und extrahierst strukturierte Antworten.
+
+Regeln:
+1. Antworte NUR mit einer Zeile pro Treffer
+2. Format je Zeile: linkId:ID|answer:TEXT|confidence:high
+3. Keine Einleitung, keine Erklärung
+4. Wenn nichts gefunden wird: linkId:N/A|answer:No match|confidence:low
+
+Verfügbare Felder:
+NITSVAn08 = Art der Aufnahme auf die Station
+NITSVAn11 = Pat. wurde aufgenommen
+NITSVAn103 = Familienstand
+''';
+
+  List<AnalysisResult> _parseOpenAiResponse(String response) {
+    final results = <AnalysisResult>[];
+
+    for (final rawLine in response.split('\n')) {
+      final line = rawLine.trim();
+      if (line.isEmpty || !line.contains('linkId:')) continue;
+
+      final parts = line.split('|');
+      String linkId = 'N/A';
+      String answer = '';
+      String confidence = 'low';
+
+      for (final part in parts) {
+        final pieces = part.split(':');
+        if (pieces.length < 2) continue;
+
+        final key = pieces.first.trim();
+        final value = pieces.sublist(1).join(':').trim();
+
+        if (key == 'linkId') linkId = value;
+        if (key == 'answer') answer = value;
+        if (key == 'confidence') confidence = value.toLowerCase();
+      }
+
+      results.add(
+        AnalysisResult(
+          linkId: linkId,
+          question: '',
+          answer: answer,
+          confidence: confidence,
+        ),
+      );
+    }
+
+    if (results.isEmpty) {
+      return const [
+        AnalysisResult(
+          linkId: 'N/A',
+          question: 'No structured response',
+          answer: 'OpenAI returned no matches',
+          confidence: 'low',
+        ),
+      ];
+    }
+
+    return results;
   }
 
   Future<List<AnalysisResult>> _mockAnalyzeTranscript(String transcript) async {
