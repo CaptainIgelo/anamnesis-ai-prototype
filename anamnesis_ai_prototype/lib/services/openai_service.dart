@@ -33,7 +33,7 @@ class OpenAiService {
             'content': 'Transcript: $transcript',
           },
         ],
-        'max_tokens': 500,
+        'max_tokens': 1200,
         'temperature': 0.1,
       }),
     );
@@ -45,22 +45,47 @@ class OpenAiService {
     final data = jsonDecode(response.body);
     final content = data['choices'][0]['message']['content'] as String;
 
+    print('OPENAI RAW RESPONSE START');
+    print(content);
+    print('OPENAI RAW RESPONSE END');
+
     return _parseOpenAiResponse(content);
   }
 
   static const String _systemPrompt = '''
 Du analysierst Pflege-Anamnese-Transkripte und extrahierst strukturierte Antworten.
 
-Regeln:
-1. Antworte NUR mit einer Zeile pro Treffer
-2. Format je Zeile: linkId:ID|answer:TEXT|confidence:high
-3. Keine Einleitung, keine Erklärung
-4. Wenn nichts gefunden wird: linkId:N/A|answer:No match|confidence:low
+WICHTIG:
+- Antworte ausschließlich im folgenden Format.
+- Keine Einleitung.
+- Keine Erklärungen.
+- Kein Markdown.
+- Kein Codeblock.
+- Nur Treffer aus den erlaubten Feldern.
+- Eine Zeile pro Treffer.
+- Wenn ein Feld nicht sicher aus dem Transkript hervorgeht, lasse es weg.
+- Verwende nur diese Werte, wenn eindeutig erkennbar.
 
-Verfügbare Felder:
+Format je Zeile:
+linkId:ID|answer:TEXT|confidence:high
+
+Erlaubte Felder:
 NITSVAn08 = Art der Aufnahme auf die Station
+- mögliche Antworten: Geplante Aufnahme, Verlegung, Notfall, Wiederaufnahme
+
 NITSVAn11 = Pat. wurde aufgenommen
+- mögliche Antworten: gehend, sitzend, liegend
+
 NITSVAn103 = Familienstand
+- mögliche Antworten: Verheiratet, Geschieden, Getrennt lebend, Verwitwet, Alleinstehend, Eheähnliche Gemeinschaft
+
+Beispiel:
+linkId:NITSVAn08|answer:Notfall|confidence:high
+linkId:NITSVAn11|answer:liegend|confidence:high
+linkId:NITSVAn103|answer:Verwitwet|confidence:medium
+
+Wenn kein einziger Treffer gefunden wird, antworte exakt so:
+linkId:N/A|answer:No match|confidence:low
 ''';
 
   List<AnalysisResult> _parseOpenAiResponse(String response) {
@@ -98,7 +123,7 @@ NITSVAn103 = Familienstand
     }
 
     if (results.isEmpty) {
-      return const [
+      return [
         AnalysisResult(
           linkId: 'N/A',
           question: 'No structured response',

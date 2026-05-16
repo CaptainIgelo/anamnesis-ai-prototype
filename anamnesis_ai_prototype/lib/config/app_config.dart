@@ -1,4 +1,11 @@
 class AppConfig  {
-    static const String openAiApiKey = 'mock-key-local-later';
-    static const bool useMockOpenAi = true; 
+    static const bool useMockOpenAi = bool.fromEnvironment(
+      'USE_MOCK_OPENAI',
+      defaultValue: true,
+    );
+
+    static const String openAiApiKey = String.fromEnvironment(
+      'OPENAI_API_KEY',
+      defaultValue: 'mock-key-local-later',
+    );
 }
