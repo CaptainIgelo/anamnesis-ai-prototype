@@ -1,4 +1,11 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+
 import '../models/analysis_result.dart';
 import '../services/openai_service.dart';
 import '../services/questionnaire_service.dart';
@@ -27,12 +34,24 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadSampleTranscript() async {
-    final transcript = await _questionnaireService.loadSampleTranscript();
+    try {
+      final transcript = await _questionnaireService.loadSampleTranscript();
 
-    setState(() {
-      _transcriptController.text = transcript;
-      _isLoading = false;
-    });
+      if (!mounted) return;
+
+      setState(() {
+        _transcriptController.text = transcript;
+        _isLoading = false;
+        _errorMessage = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Sample transcript could not be loaded.';
+      });
+    }
   }
 
   Future<void> _analyzeTranscript() async {
@@ -40,7 +59,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (transcript.isEmpty) {
       setState(() {
-        _errorMessage = 'Please enter a transcript befoe starting the analysis.';
+        _errorMessage =
+            'Please enter a transcript before starting the analysis.';
         _results = [];
       });
       return;
@@ -48,32 +68,82 @@ class _HomeScreenState extends State<HomeScreen> {
 
     setState(() {
       _isAnalyzing = true;
-      _errorMessage = null; 
+      _errorMessage = null;
     });
 
     try {
       final results = await _openAiService.analyzeTranscript(transcript);
 
-      if (!mounted) return; 
+      if (!mounted) return;
 
       setState(() {
-        _results = results; 
+        _results = results;
       });
-    } catch(e) {
-      if (!mounted) return; 
+    } catch (e) {
+      if (!mounted) return;
 
       setState(() {
         _results = [];
-        _errorMessage = 'Analysis failed. Please try again latter.';
+        _errorMessage = 'Analysis failed. Please try again later.';
       });
     } finally {
-    if (mounted) {
-      setState(() {
-        _isAnalyzing = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isAnalyzing = false;
+        });
+      }
     }
   }
-} 
+
+  String _escapeCsv(String value) {
+    final escaped = value.replaceAll('"', '""');
+    return '"$escaped"';
+  }
+
+  Future<void> _exportCsv() async {
+    if (_results.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No results to export.')));
+      return;
+    }
+
+    final rows = <List<String>>[
+      ['linkId', 'answer'],
+      ..._results.map((r) => [r.linkId, r.answer]),
+    ];
+
+    final csvString = rows
+        .map((row) => row.map(_escapeCsv).join(','))
+        .join('\n');
+
+    final fileName =
+        'anamnesis_export_${DateTime.now().millisecondsSinceEpoch}.csv';
+
+    if (kIsWeb) {
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile.fromData(
+              utf8.encode(csvString),
+              mimeType: 'text/csv',
+              name: fileName,
+            ),
+          ],
+          text: 'Anamnesis CSV export',
+        ),
+      );
+      return;
+    }
+
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/$fileName');
+    await file.writeAsString(csvString);
+
+    await SharePlus.instance.share(
+      ShareParams(files: [XFile(file.path)], text: 'Anamnesis CSV export'),
+    );
+  }
 
   @override
   void dispose() {
@@ -86,6 +156,18 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Anamnesis AI Prototype'),
+        actions: [
+          IconButton(
+            onPressed: _results.isEmpty ? null : _exportCsv,
+            icon: const Icon(Icons.share),
+            tooltip: 'Export CSV',
+          ),
+          IconButton(
+            onPressed: _isAnalyzing ? null : _analyzeTranscript,
+            icon: const Icon(Icons.check),
+            tooltip: 'Analyze',
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -95,33 +177,23 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   const Text(
                     'Transcript input',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _transcriptController,
-                    maxLines: 8,
+                    maxLines: 10,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       hintText: 'Paste or enter the interview transcript here',
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _isAnalyzing ? null : _analyzeTranscript,
-                    child: _isAnalyzing
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Analyze transcript'),
-                  ),
+                  if (_isAnalyzing) ...[
+                    const SizedBox(height: 16),
+                    const Center(child: CircularProgressIndicator()),
+                  ],
                   if (_errorMessage != null) ...[
-                    const SizedBox(height:12),
+                    const SizedBox(height: 12),
                     Text(
                       _errorMessage!,
                       style: const TextStyle(
@@ -133,10 +205,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 24),
                   const Text(
                     'Analysis results',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
                   if (_results.isEmpty)
@@ -145,10 +214,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ..._results.map(
                       (result) => Card(
                         child: ListTile(
-                          title: Text('${result.linkId} - ${result.question}'),
-                          subtitle: Text(
-                            'Answer: ${result.answer}\nConfidence: ${result.confidence}',
-                          ),
+                          title: Text(result.linkId),
+                          subtitle: Text(result.answer),
                         ),
                       ),
                     ),

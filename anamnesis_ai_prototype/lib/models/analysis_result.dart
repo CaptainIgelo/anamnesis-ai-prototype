@@ -1,14 +1,13 @@
 class AnalysisResult {
-    final String linkId;
-    final String question; 
-    final String answer; 
-    final String confidence; 
+  final String linkId;
+  final String answer;
 
+  const AnalysisResult({required this.linkId, required this.answer});
 
-    const AnalysisResult({
-        required this.linkId,
-        required this.question, 
-        required this.answer,
-        required this.confidence, 
-    });
+  factory AnalysisResult.fromJson(Map<String, dynamic> json) {
+    return AnalysisResult(
+      linkId: (json['linkId'] ?? '').toString(),
+      answer: (json['answer'] ?? '').toString(),
+    );
+  }
 }
