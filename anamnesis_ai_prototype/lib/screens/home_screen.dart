@@ -8,7 +8,6 @@ import 'package:share_plus/share_plus.dart';
 
 import '../models/analysis_result.dart';
 import '../services/openai_service.dart';
-import '../services/questionnaire_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,7 +17,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final QuestionnaireService _questionnaireService = QuestionnaireService();
   final OpenAiService _openAiService = OpenAiService();
   final TextEditingController _transcriptController = TextEditingController();
 
@@ -30,28 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSampleTranscript();
-  }
-
-  Future<void> _loadSampleTranscript() async {
-    try {
-      final transcript = await _questionnaireService.loadSampleTranscript();
-
-      if (!mounted) return;
-
-      setState(() {
-        _transcriptController.text = transcript;
-        _isLoading = false;
-        _errorMessage = null;
-      });
-    } catch (e) {
-      if (!mounted) return;
-
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'Sample transcript could not be loaded.';
-      });
-    }
+    _isLoading = false;
   }
 
   Future<void> _analyzeTranscript() async {
@@ -59,8 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (transcript.isEmpty) {
       setState(() {
-        _errorMessage =
-            'Please enter a transcript before starting the analysis.';
+        _errorMessage = 'Bitte zuerst ein Transkript einfügen.';
         _results = [];
       });
       return;
@@ -84,7 +60,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
       setState(() {
         _results = [];
-        _errorMessage = 'Analysis failed. Please try again later.';
+        _errorMessage =
+            'Analyse fehlgeschlagen. Bitte später erneut versuchen. ';
       });
     } finally {
       if (mounted) {
@@ -102,9 +79,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _exportCsv() async {
     if (_results.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('No results to export.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Keine Ergebnisse zum Exprotieren vorhanden.'),
+        ),
+      );
       return;
     }
 
@@ -130,7 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
               name: fileName,
             ),
           ],
-          text: 'Anamnesis CSV export',
+          text: 'Anamnese CSV-Export',
         ),
       );
       return;
@@ -141,7 +120,7 @@ class _HomeScreenState extends State<HomeScreen> {
     await file.writeAsString(csvString);
 
     await SharePlus.instance.share(
-      ShareParams(files: [XFile(file.path)], text: 'Anamnesis CSV export'),
+      ShareParams(files: [XFile(file.path)], text: 'Anamnese CSV-Export'),
     );
   }
 
@@ -155,17 +134,17 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Anamnesis AI Prototype'),
+        title: const Text('Anamnese KI Prototyp'),
         actions: [
           IconButton(
             onPressed: _results.isEmpty ? null : _exportCsv,
             icon: const Icon(Icons.share),
-            tooltip: 'Export CSV',
+            tooltip: 'CSV exportieren',
           ),
           IconButton(
             onPressed: _isAnalyzing ? null : _analyzeTranscript,
             icon: const Icon(Icons.check),
-            tooltip: 'Analyze',
+            tooltip: 'Analysieren',
           ),
         ],
       ),
@@ -176,7 +155,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: ListView(
                 children: [
                   const Text(
-                    'Transcript input',
+                    'Interview-Transkript',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
@@ -185,7 +164,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     maxLines: 10,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
-                      hintText: 'Paste or enter the interview transcript here',
+                      hintText: 'hier Transkript einfügen...',
                     ),
                   ),
                   if (_isAnalyzing) ...[
@@ -204,12 +183,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                   const SizedBox(height: 24),
                   const Text(
-                    'Analysis results',
+                    'Analyseergebnisse',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 12),
                   if (_results.isEmpty)
-                    const Text('No analysis results yet.')
+                    const Text('Noch keine Analyseergebnisse vorhanden.')
                   else
                     ..._results.map(
                       (result) => Card(

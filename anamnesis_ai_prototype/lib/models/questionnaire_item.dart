@@ -10,7 +10,8 @@ class QuestionnaireItem {
   });
 
   factory QuestionnaireItem.fromJson(Map<String, dynamic> json) {
-    final options = (json['answer'] as List<dynamic>? ?? [])
+    final options = (json['answerOption'] as List<dynamic>? ?? [])
+        .whereType<Map<String, dynamic>>()
         .map((option) => option['valueString']?.toString() ?? '')
         .where((value) => value.isNotEmpty)
         .toList();

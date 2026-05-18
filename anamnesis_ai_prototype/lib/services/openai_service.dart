@@ -18,8 +18,15 @@ class OpenAiService {
   }
 
   Future<List<AnalysisResult>> _callOpenAi(String transcript) async {
-    final questionnaireJson = await _questionnaireService
-        .loadQuestionnaireJson();
+    final questionnaireItems = await _questionnaireService.loadQuestionnaireItems();
+
+    final promptQuestionnaire = questionnaireItems
+        .map((item) => {
+              'linkId': item.linkId,
+              'text': item.text,
+              'answerOptions': item.answerOptions,
+            })
+        .toList();
 
     final response = await http.post(
       Uri.parse(_baseUrl),
@@ -37,7 +44,7 @@ class OpenAiService {
             'content': jsonEncode({
               'instruction':
                   'Analyze the nursing interview transcript using the provided questionnaire. Return JSON only.',
-              'questionnaire': questionnaireJson,
+              'questionnaire': promptQuestionnaire,
               'transcript': transcript,
               'output_format': {
                 'results': [
@@ -65,30 +72,47 @@ class OpenAiService {
     final resultsJson = parsed['results'] as List? ?? [];
 
     return resultsJson
-        .map((item) => AnalysisResult.fromJson(item as Map<String, dynamic>))
+        .whereType<Map<String, dynamic>>()
+        .map(AnalysisResult.fromJson)
         .where((item) => item.linkId.isNotEmpty && item.answer.isNotEmpty)
         .toList();
   }
 
   static const String _systemPrompt = '''
-You are a trained hospital nurse performing structured anamnesis extraction.
+You are a trained hospital nurse performing structured anamnesis extraction from a German nursing admission interview.
 
-Task:
-- Analyze a pasted nursing interview transcript.
-- Use the provided questionnaire JSON as the source of valid questions.
-- Return only answers that can be derived from the transcript with reasonable confidence.
-- If a questionnaire item contains predefined answer options, choose the best matching option.
-- If an answer is free text, return concise free text.
-- Omit fields that cannot be answered from the transcript.
+Your task is to extract as many relevant questionnaire answers as possible from the transcript.
+
+Rules:
+- Use the provided questionnaire data as the only source of valid linkIds.
+- Use linkIds exactly as provided in the questionnaire.
+- Do not invent, rename, shorten, or reformat linkIds.
+- Read the full transcript carefully and extract all answers that can be inferred with reasonable confidence.
+- Do not limit yourself to only the most obvious 2 or 3 fields.
+- Return every questionnaire item that is clearly or strongly implied by the transcript.
+- If a questionnaire item has predefined answer options, choose the best matching option from the provided answerOptions.
+- For answer options, use the option text exactly as provided.
+- If a questionnaire item expects free text, return a concise German free-text answer.
+- Prefer specific, short, structured answers over long explanations.
+- Omit only fields that truly cannot be answered from the transcript.
+- Do not invent facts.
+- Do not include explanations.
+- Do not include null values.
+- Do not include empty strings.
 - Return valid JSON only.
 - Do not return markdown.
-- Do not return explanations.
+
+Important extraction behavior:
+- Also extract demographic, social, mobility, support, contact, religion, risk, medication, disease, communication, consent, nutrition, addiction, orientation, and valuables-related information if present.
+- If the transcript contains multiple relevant details, return all matching questionnaire answers.
+- If the transcript contains explicit negations such as "no", "none", or "not known", use them when they answer a questionnaire item.
+- Keep the answer language in German.
 
 Required JSON structure:
 {
   "results": [
     {
-      "linkId": "NIT_SVAn_08",
+      "linkId": "NITSVAn08",
       "answer": "Notfall"
     }
   ]
@@ -99,9 +123,9 @@ Required JSON structure:
     await Future.delayed(const Duration(milliseconds: 500));
 
     return const [
-      AnalysisResult(linkId: 'NIT_SVAn_08', answer: 'Notfall'),
-      AnalysisResult(linkId: 'NIT_SVAn_11', answer: 'liegend'),
-      AnalysisResult(linkId: 'NIT_SVAn_103', answer: 'Verwitwet'),
+      AnalysisResult(linkId: 'NITSVAn08', answer: 'Notfall'),
+      AnalysisResult(linkId: 'NITSVAn11', answer: 'liegend'),
+      AnalysisResult(linkId: 'NITSVAn103', answer: 'Verwitwet'),
     ];
   }
 }

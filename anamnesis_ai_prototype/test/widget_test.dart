@@ -9,11 +9,11 @@ void main() {
     await tester.pumpWidget(const AnamnesisApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('Anamnesis AI Prototype'), findsOneWidget);
-    expect(find.text('Transcript input'), findsOneWidget);
-    expect(find.text('Analysis results'), findsOneWidget);
+    expect(find.text('Anamnese KI Prototyp'), findsOneWidget);
+    expect(find.text('Interview-Transkript'), findsOneWidget);
+    expect(find.text('Analyseergebnisse'), findsOneWidget);
     expect(find.byType(TextField), findsOneWidget);
-    expect(find.byTooltip('Analyze'), findsOneWidget);
-    expect(find.byTooltip('Export CSV'), findsOneWidget);
+    expect(find.byTooltip('Analysieren'), findsOneWidget);
+    expect(find.byTooltip('CSV exportieren'), findsOneWidget);
   });
 }

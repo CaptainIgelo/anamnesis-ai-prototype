@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/services.dart';
+import '../models/questionnaire_item.dart';
 
 class QuestionnaireService {
   Future<Map<String, dynamic>> loadQuestionnaireJson() async {
@@ -8,6 +9,17 @@ class QuestionnaireService {
     );
 
     return jsonDecode(jsonString) as Map<String, dynamic>;
+  }
+
+  Future<List<QuestionnaireItem>> loadQuestionnaireItems() async {
+    final jsonMap = await loadQuestionnaireJson();
+    final items = jsonMap['item'] as List<dynamic>? ?? [];
+
+    return items
+        .whereType<Map<String, dynamic>>()
+        .map(QuestionnaireItem.fromJson)
+        .where((item) => item.linkId.isNotEmpty && item.text.isNotEmpty)
+        .toList();
   }
 
   Future<String> loadSampleTranscript() async {
