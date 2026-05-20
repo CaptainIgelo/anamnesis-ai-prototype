@@ -1,2 +1,4 @@
 Hallo, Herr Kingston. Sie sind als Notfall liegend zu uns gekommen.
 Ihre Frau ist vor fünf Jahren gestorben. Der Patient ist verwitwet.
+
+test
